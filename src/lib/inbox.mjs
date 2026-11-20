@@ -2,15 +2,15 @@ import { rows, get, find, put, insert, update, newest, audit, limited, pruneCach
 import { canAccess, text, windowOpen } from "./security.mjs";
 import { config, eligibleTemplate, GraphError, graph, mediaType, send, templatePayload, templates } from "./meta.mjs";
 
-function summarize(row) {
-  const {id: contactId,...contact} = get("contacts",row.contact_id);
+function summarize(row,user) {
+  const {id: contactId,notes,tags,opt_source,...contact} = get("contacts",row.contact_id);
   const latest = rows("messages").filter((message)=>message.conversation_id===row.id).sort(newest)[0];
-  return { ...contact,...row,contact_id:contactId,agent:get("users",row.agent_id)?.name,
+  return { ...contact,...row,contact_id:contactId,...(user.role === "PUBLIC" ? {} : {notes,tags,opt_source,agent:get("users",row.agent_id)?.name}),
     preview:latest?.body || latest?.kind };
 }
 export function thread(user,id) {
   const row = get("conversations",id);
-  return canAccess(user,row) ? summarize(row) : null;
+  return canAccess(user,row) ? summarize(row,user) : null;
 }
 export function list(user,{query="",filter="",page=0}={}) {
   pruneCache();
@@ -21,7 +21,7 @@ export function list(user,{query="",filter="",page=0}={}) {
     const contact = get("contacts",row.contact_id);
     return contact.wa_id.includes(search) || contact.name?.toLowerCase().includes(search);
   }).sort((a,b)=>b.last_message-a.last_message || b.id-a.id)
-    .slice(page*30,page*30+31).map(summarize);
+    .slice(page*30,page*30+31).map(row => summarize(row,user));
 }
 export function timeline(id,before) {
   const messages = rows("messages").filter((row)=>row.conversation_id===id).sort(newest);

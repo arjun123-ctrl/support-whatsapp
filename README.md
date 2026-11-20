@@ -11,7 +11,7 @@ npm.cmd ci
 npm.cmd run dev
 ```
 
-Open http://localhost:3000/dashboard/conversations. Local development opens the workspace directly and listens on loopback. Production requires sign-in. The admin command prompts for a password and updates the bootstrap account and password hash in the ignored `.env.local` file. Restart Next.js to apply the bootstrap configuration. Configure Meta credentials in `.env.local`. Skip dependency installation if dependencies are already present.
+Open http://localhost:3000/dashboard/conversations. Local development opens the workspace directly and listens on loopback. The production Conversations dashboard is public. Visitors can read retained messages and send replies. Administration endpoints require an administrator session. The admin command prompts for a password and updates the bootstrap account and password hash in the ignored `.env.local` file. Restart Next.js to apply the bootstrap configuration. Configure Meta credentials in `.env.local`. Skip dependency installation if dependencies are already present.
 
 ## Verification
 

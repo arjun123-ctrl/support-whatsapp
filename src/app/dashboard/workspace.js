@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { api } from "../_components/public-form";
 import { messageReactions, reactionLifetime } from "@/lib/message-reactions.mjs";
 import { TemplateLibrary } from "./template-editor";
@@ -18,7 +18,7 @@ function formOf(values) {
   for (const [key,value] of Object.entries(values)) form.set(key,value ?? "");
   return form;
 }
-export function Sidebar({admin}) {
+export function Sidebar({admin,publicAccess}) {
   const current = usePathname();
   const [requests,setRequests] = useState(0);
   useEffect(() => {
@@ -29,18 +29,10 @@ export function Sidebar({admin}) {
     const timer = setInterval(refresh,15000);
     return () => { active = false; clearInterval(timer); };
   },[admin]);
-  return <nav aria-label="Workspace">{navigation.filter((item) => !item[3] || admin).map(([label,path,icon]) => {
+  return <nav aria-label="Workspace">{navigation.filter((item) => (!item[3] || admin) && (!publicAccess || item[1] !== "contacts")).map(([label,path,icon]) => {
     const href = "/dashboard"+(path ? "/"+path : "");
     return <Link key={href} href={href} aria-current={current === href ? "page" : undefined}><span aria-hidden="true">{icon}</span>{label}{path === "deletion-requests" && requests > 0 && <b className="badge" aria-label={requests+" open requests"}>{requests}</b>}</Link>;
   })}</nav>;
-}
-export function Logout() {
-  const router = useRouter();
-  const [error,setError] = useState("");
-  return <><button className="secondary" onClick={async () => {
-    try { await api("logout",new FormData()); router.replace("/login"); router.refresh(); }
-    catch (error) { setError(error.message); }
-  }}>Sign out</button>{error && <small role="alert">{error}</small>}</>;
 }
 function Header({label,detail}) {
   return <header className="work-header"><div><h1>{label}</h1><p>{detail}</p></div><span className="channel">WhatsApp Cloud API</span></header>;

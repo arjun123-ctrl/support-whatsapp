@@ -256,6 +256,7 @@ export async function POST(request,{ params }) {
   if (resource === "conversation") {
     const current = thread(user,id);
     if (!current) return fail(404,"Conversation unavailable");
+    if (user.role === "PUBLIC" && form.get("action") !== "read") return fail(403,"Staff access required");
     if (form.get("action") === "read") {
       update("conversations",id,{unread:0});
       const message = timeline(id,null).findLast((row)=>row.direction==="in");

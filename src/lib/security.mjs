@@ -41,7 +41,7 @@ export function localWorkspaceUser(headers) {
   };
 }
 export function workspaceUser(token, headers) {
-  return localWorkspaceUser(headers) || session(token);
+  return localWorkspaceUser(headers) || session(token) || {id:0,name:"Public workspace",role:"PUBLIC"};
 }
 export function text(value, length) {
   return typeof value === "string" ? value.trim().slice(0, length) : "";
@@ -54,7 +54,7 @@ export function email(value) {
   const result = text(value, 254).toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result) ? result : null;
 }
-export const canAccess = (user, row) => Boolean(user && row && (user.role === "ADMIN" || row.agent_id === user.id));
+export const canAccess = (user, row) => Boolean(user && row && (["ADMIN","PUBLIC"].includes(user.role) || row.agent_id === user.id));
 export const windowOpen = (stamp, now = Date.now()) => Boolean(stamp && stamp <= now && now - stamp < 86400000);
 export function clientKey(headers) {
   const header = process.env.TRUSTED_CLIENT_IP_HEADER;

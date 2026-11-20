@@ -14,7 +14,7 @@ export const business = {
 };
 export const links = [["Privacy policy","/privacy-policy"],["Terms of service","/terms-of-service"],["Data deletion","/data-deletion"],["Contact","/contact"]];
 export function PublicLayout({children}) {
-  return <div className="public"><header className="public-nav"><Brand/><nav><Link href="/contact">Contact</Link><Link className="button secondary" href="/login">Team sign in</Link></nav></header>
+  return <div className="public"><header className="public-nav"><Brand/><nav><Link href="/contact">Contact</Link><Link className="button secondary" href="/dashboard/conversations">Conversations</Link></nav></header>
     <main>{children}</main><footer><Brand/><nav aria-label="Legal">{links.map(([label,href]) => <Link key={href} href={href}>{label}</Link>)}</nav></footer></div>;
 }
 export function ContactDetails() {
