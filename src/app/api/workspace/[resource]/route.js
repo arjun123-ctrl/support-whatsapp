@@ -15,6 +15,15 @@ const int = (value) => /^\d{1,9}$/.test(value || "") ? Number(value) : 0;
 const cookie = { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" };
 const admin = (user) => user.role === "ADMIN";
 const siteOrigin = (request) => new URL(process.env.APP_BASE_URL || request.url).origin;
+function validRequestOrigin(request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  if (origin === siteOrigin(request)) return true;
+  if (localWorkspaceUser(request.headers) && origin === "http://" + request.headers.get("host")) return true;
+  if (!process.env.VERCEL) return false;
+  return [process.env.VERCEL_PROJECT_PRODUCTION_URL,process.env.VERCEL_URL]
+    .some(host => host && origin === "https://" + host);
+}
 
 function readQuery(request) {
   const q = request.nextUrl.searchParams;
@@ -110,9 +119,7 @@ async function getResource(request, resource) {
   return fail(404,"Unknown resource");
 }
 async function postResource(request, resource) {
-  const origin = request.headers.get("origin");
-  const localOrigin = localWorkspaceUser(request.headers) && origin === "http://" + request.headers.get("host");
-  if (origin !== siteOrigin(request) && !localOrigin) return fail(403,"Invalid request origin");
+  if (!validRequestOrigin(request)) return fail(403,"Invalid request origin");
   const publicRoute = ["login","public"].includes(resource);
   const user = workspaceUser(token(request), request.headers);
   if (!publicRoute && !user) return fail(401,"Sign in required");
