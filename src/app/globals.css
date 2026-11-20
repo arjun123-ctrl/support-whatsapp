@@ -159,7 +159,8 @@ small{font-size:.79rem;color:var(--muted)}
 .workspace .bubble-line .bubble-meta{display:inline-flex;gap:.35rem;align-items:center;margin:0 0 0 auto;white-space:nowrap;font-size:.71rem}
 .workspace .bubble blockquote{white-space:pre-wrap;background:#101e2260;border-radius:.5rem;padding:.4rem .58rem;margin:0 0 .35rem}
 .workspace .bubble blockquote strong{display:block;color:#a3dcc7;font-size:.73rem}
-.workspace .delivery-mark[data-status="read"]{color:#83dbcd}
+.workspace .delivery-mark{color:#b6c1c4;font-weight:700}
+.workspace .delivery-mark[data-status="read"]{color:#65c7ff}
 .workspace .delivery-mark[data-status="failed"]{color:#ffb0a5;font-weight:750}
 .workspace .bubble .text-button{font-size:.72rem;padding:.08rem .25rem}
 .workspace .composer{padding:.5rem clamp(.65rem,2vw,1.2rem);background:#152125}

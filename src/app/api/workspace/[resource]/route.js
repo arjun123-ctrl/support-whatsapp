@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { databaseConfigured } from "@/lib/database.mjs";
 import { rows, get, find, put, remove, insert, update, users, pendingRequests, audit, limited, withWorkspaceStore, WorkspaceStorageError } from "@/lib/store.mjs";
 import { authenticate, clientKey, cookieName, digest, email, hashPassword, localWorkspaceUser, nonce, phone, text, windowOpen, workspaceUser } from "@/lib/security.mjs";
 import { messageReactions, reactionLifetime } from "@/lib/message-reactions.mjs";
@@ -342,15 +343,15 @@ async function storedRequest(request, resource, handler) {
   try { return await withWorkspaceStore(() => handler(request, resource)); }
   catch (error) {
     if (!(error instanceof WorkspaceStorageError)) throw error;
-    console.error("[Workspace] Local storage unavailable",error.message);
-    return fail(503,"Local inbox storage unavailable. Check the server storage directory.");
+    console.error("[Workspace] Storage unavailable",error.message,error.cause?.code || "");
+    return fail(503,"Inbox storage unavailable. Check the database connection and workspace table.");
   }
 }
 
 export async function GET(request,{params}) {
   const {resource} = await params;
   // Poll across serverless invocations so each refresh can try a fresh inbox request.
-  if (resource === "events" && process.env.VERCEL) return new Response(null,{status:204});
+  if (resource === "events" && (process.env.VERCEL || databaseConfigured())) return new Response(null,{status:204});
   return storedRequest(request,resource,getResource);
 }
 

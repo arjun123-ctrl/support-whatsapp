@@ -1,8 +1,11 @@
 import { randomInt } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { databaseConfigured, databasePool } from "./database.mjs";
 
 const cacheKey = Symbol.for("arknp.workspace.cache");
+const databaseRequest = new AsyncLocalStorage();
 const storagePath = resolve("data/workspace.json");
 let writeQueue = Promise.resolve();
 export class WorkspaceStorageError extends Error {}
@@ -22,6 +25,8 @@ function table(name) {
   return workspaceState()[name];
 }
 function workspaceState() {
+  const context = databaseRequest.getStore();
+  if (context) return context.state;
   if (globalThis[cacheKey]) return globalThis[cacheKey];
   const state = createCache();
   if (!process.env.VERCEL) {
@@ -41,8 +46,67 @@ function encode(state) {
   return JSON.stringify(Object.fromEntries(tables.map(name => [name,[...state[name]]])));
 }
 
-export function withWorkspaceStore(operation) {
-  if (process.env.VERCEL) return operation();
+function decodeDatabaseState(payload) {
+  const state = createCache();
+  if (!payload) return state;
+  const saved = typeof payload === "string" ? JSON.parse(payload) : payload;
+  for (const name of tables) {
+    if (Array.isArray(saved[name])) state[name] = new Map(saved[name]);
+  }
+  return state;
+}
+
+async function databaseStore(operation, readOnly) {
+  const select = "SELECT payload FROM whatsapp_workspace_state WHERE id = 1";
+  let connection;
+  let state;
+  try {
+    const pool = databasePool();
+    if (readOnly) {
+      const [records] = await pool.query(select);
+      state = decodeDatabaseState(records[0]?.payload);
+    } else {
+      connection = await pool.getConnection();
+      await connection.beginTransaction();
+      await connection.execute(
+        "INSERT INTO whatsapp_workspace_state (id,payload) VALUES (1,?) ON DUPLICATE KEY UPDATE id = id",
+        [encode(createCache())],
+      );
+      const [records] = await connection.query(select + " FOR UPDATE");
+      state = decodeDatabaseState(records[0]?.payload);
+    }
+  } catch (error) {
+    if (connection) {
+      await connection.rollback().catch(() => {});
+      connection.release();
+    }
+    throw new WorkspaceStorageError("Could not load MySQL workspace storage",{cause:error});
+  }
+  try {
+    const before = readOnly ? null : encode(state);
+    const result = await databaseRequest.run({state,lastPrune:0},operation);
+    if (connection) {
+      try {
+        const after = encode(state);
+        if (before !== after) {
+          await connection.execute("UPDATE whatsapp_workspace_state SET payload = ? WHERE id = 1",[after]);
+        }
+        await connection.commit();
+      } catch (error) {
+        throw new WorkspaceStorageError("Could not save MySQL workspace storage",{cause:error});
+      }
+    }
+    return result;
+  } catch (error) {
+    if (connection) await connection.rollback().catch(() => {});
+    throw error;
+  } finally { connection?.release(); }
+}
+
+export function withWorkspaceStore(operation,{readOnly=false}={}) {
+  if (databaseRequest.getStore()) return operation();
+  if (databaseConfigured()) return databaseStore(operation,readOnly);
+  if (process.env.VERCEL) throw new WorkspaceStorageError("Configure MySQL workspace storage");
   const run = writeQueue.then(async () => {
     const before = encode(workspaceState());
     const result = await operation();
@@ -120,8 +184,10 @@ export const newest = (a,b) => b.stamp-a.stamp || b.id-a.id;
 
 let lastPrune = 0;
 export function pruneCache(now = Date.now()) {
-  if (now-lastPrune < 60000) return;
-  lastPrune = now;
+  const context = databaseRequest.getStore();
+  if (now-(context?.lastPrune ?? lastPrune) < 60000) return;
+  if (context) context.lastPrune = now;
+  else lastPrune = now;
   const days = Number(process.env.MESSAGE_RETENTION_DAYS);
   const cutoff = Number.isSafeInteger(days) && days > 0 ? now - days*86400000 : null;
   trim("sessions",(row)=>row.expires <= now);

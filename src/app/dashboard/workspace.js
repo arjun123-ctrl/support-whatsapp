@@ -127,6 +127,7 @@ const templateText = (item) => item?.components?.find((component) => component.t
 const slots = (item) => [...new Set([...templateText(item).matchAll(/{{(\d+)}}/g)].map((match) => Number(match[1])))].sort((a,b)=>a-b);
 const chatTime = new Intl.DateTimeFormat("en-IN",{timeStyle:"short",timeZone:"Asia/Kolkata"});
 const deliveryMark = {pending:"…",unknown:"?",accepted:"✓",sent:"✓",delivered:"✓✓",read:"✓✓",failed:"!"};
+const deliveryLabel = {pending:"Sending",unknown:"Delivery unconfirmed",accepted:"Accepted by Meta",sent:"Sent",delivered:"Delivered",read:"Seen",failed:"Delivery failed"};
 const quotedMediaLabels = {image:"Photo",audio:"Audio message",video:"Video",document:"Document",sticker:"Sticker"};
 function QuotedMessage({message}) {
   return <blockquote className="quoted-message"><strong>Quoted message</strong>
@@ -257,8 +258,8 @@ function Chat({thread,messages,before,setBefore,contacts,refresh,back}) {
           <small className="bubble-meta" title={date(message.stamp)}>
             <time dateTime={new Date(message.stamp).toISOString()}>{chatTime.format(message.stamp)}</time>
             {message.direction === "out" && <span className="delivery-mark" data-status={message.status} role="img"
-              aria-label={message.status + (message.error_code ? " · " + message.error_code : "")}
-              title={message.status + (message.error_code ? " · " + message.error_code : "")}>{deliveryMark[message.status] || message.status}</span>}
+              aria-label={deliveryLabel[message.status] || message.status}
+              title={(deliveryLabel[message.status] || message.status) + (message.error_code ? " · " + message.error_code : "")}>{deliveryMark[message.status] || message.status}</span>}
           </small>
         </div>
         {(message.status === "unknown" || message.status === "pending") && message.direction === "out" && <small>Check delivery before sending again.</small>}

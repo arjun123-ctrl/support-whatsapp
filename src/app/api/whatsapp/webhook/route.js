@@ -5,8 +5,8 @@ async function handle(request, handler) {
   try { return await withWorkspaceStore(() => handler(request)); }
   catch (error) {
     if (!(error instanceof WorkspaceStorageError)) throw error;
-    console.error("[WhatsApp webhook] Local storage unavailable",error.message);
-    return new Response("Local storage unavailable. Retry delivery.",{status:503});
+    console.error("[WhatsApp webhook] Workspace storage unavailable",error.message,error.cause?.code || "");
+    return new Response("Workspace storage unavailable. Retry delivery.",{status:503});
   }
 }
 export function GET(request) { return handle(request,verify); }
