@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rows, get, find, put, remove, insert, update, users, pendingRequests, audit, limited } from "@/lib/store.mjs";
+import { rows, get, find, put, remove, insert, update, users, pendingRequests, audit, limited, sharedStorageRequired, withWorkspaceStore, WorkspaceStorageError } from "@/lib/store.mjs";
 import { authenticate, clientKey, cookieName, digest, email, hashPassword, localWorkspaceUser, nonce, phone, text, windowOpen, workspaceUser } from "@/lib/security.mjs";
 import { messageReactions, reactionLifetime } from "@/lib/message-reactions.mjs";
 import { outbound, snapshot, thread, timeline } from "@/lib/inbox.mjs";
@@ -60,8 +60,7 @@ const metaFailure = (user, error) => {
   if (error instanceof GraphError && error.code === "190") return fail(502,"Meta rejected the WhatsApp access token. Update WHATSAPP_ACCESS_TOKEN with a valid token that has whatsapp_business_management permission.");
   return fail(502,error instanceof GraphError ? "Meta request failed, code " + error.code : "Check Meta configuration and connectivity.");
 };
-export async function GET(request, { params }) {
-  const { resource } = await params;
+async function getResource(request, resource) {
   const user = workspaceUser(token(request), request.headers);
   if (!user) return fail(401,"Sign in required");
   const q = request.nextUrl.searchParams;
@@ -110,8 +109,7 @@ export async function GET(request, { params }) {
   });
   return fail(404,"Unknown resource");
 }
-export async function POST(request,{ params }) {
-  const { resource } = await params;
+async function postResource(request, resource) {
   const origin = request.headers.get("origin");
   const localOrigin = localWorkspaceUser(request.headers) && origin === "http://" + request.headers.get("host");
   if (origin !== siteOrigin(request) && !localOrigin) return fail(403,"Invalid request origin");
@@ -332,3 +330,24 @@ export async function POST(request,{ params }) {
   return fail(404,"Unknown resource");
 }
 function configSafePhone() { return process.env.WHATSAPP_PHONE_NUMBER_ID; }
+
+async function storedRequest(request, resource, handler) {
+  try { return await withWorkspaceStore(() => handler(request, resource)); }
+  catch (error) {
+    if (!(error instanceof WorkspaceStorageError)) throw error;
+    console.error("[Workspace] Shared storage unavailable",error.message);
+    return fail(503,"Shared inbox storage unavailable. Check the deployment storage configuration.");
+  }
+}
+
+export async function GET(request,{params}) {
+  const {resource} = await params;
+  // Poll across serverless invocations so each refresh loads current shared state.
+  if (resource === "events" && sharedStorageRequired()) return new Response(null,{status:204});
+  return storedRequest(request,resource,getResource);
+}
+
+export async function POST(request,{params}) {
+  const {resource} = await params;
+  return storedRequest(request,resource,postResource);
+}
