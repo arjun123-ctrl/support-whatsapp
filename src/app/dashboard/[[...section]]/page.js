@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cookieName, workspaceUser } from "@/lib/security.mjs";
-import { pendingRequests, users, sharedStorageConfigured, withWorkspaceStore } from "@/lib/store.mjs";
+import { pendingRequests, users } from "@/lib/store.mjs";
 import { list } from "@/lib/inbox.mjs";
 import { Workspace } from "../workspace";
 
@@ -10,11 +10,7 @@ export default async function DashboardPage({params,searchParams}) {
   const requestHeaders = await headers();
   const sectionPath = (await params).section?.join("/");
   const selected = Number((await searchParams).id) || 0;
-  const render = () => dashboard(token,requestHeaders,sectionPath,selected);
-  if (sharedStorageConfigured() && (token || sectionPath === "overview")) {
-    return withWorkspaceStore(render,{readOnly:true});
-  }
-  return render();
+  return dashboard(token,requestHeaders,sectionPath,selected);
 }
 
 function dashboard(token,requestHeaders,sectionPath,selected) {

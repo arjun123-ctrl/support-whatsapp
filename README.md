@@ -1,6 +1,6 @@
 # ARKNP WhatsApp workspace
 
-This Next.js app serves ARKNP?s public pages and a WhatsApp inbox using the Meta Cloud API. Local development defaults to in-memory storage. Vercel uses shared Redis storage so webhook deliveries and dashboard requests can read the same data across instances.
+This Next.js app serves ARKNP public pages and a WhatsApp inbox using the Meta Cloud API. A single local Node.js server stores workspace data in the ignored data/workspace.json file.
 
 ## Run locally on Windows
 
@@ -24,13 +24,13 @@ npm.cmd run test:smoke
 
 Tests use a temporary process cache, synthetic inbound events, and mocked Meta sends.
 
-## Vercel deployment
+## Local storage
 
-Connect a Redis database with the Upstash REST API, then add its HTTPS `UPSTASH_REDIS_REST_URL` and write-capable `UPSTASH_REDIS_REST_TOKEN` to Vercel?s Production environment variables and redeploy. Set `APP_BASE_URL` to the deployed origin and point Meta to `/api/whatsapp/webhook` on that origin. Use a dedicated database for the deployment. Webhook writes return 503 when shared storage is unavailable so Meta can retry. Conversations that existed only in a previous instance?s memory are outside the shared store.
+Run one Node.js server with a writable data directory and point the Meta webhook at that server through HTTPS. Messages remain in data/workspace.json across local restarts. Vercel functions use isolated memory because their files cannot provide durable storage shared across function instances. Host the inbox and webhook together on the local server for reliable delivery and reads.
 
 ## Public HTTPS testing
 
-Set `APP_BASE_URL` to the public HTTPS origin. Build with `npm.cmd run build` and run `npm.cmd start` behind an HTTPS reverse proxy. Supply business policy values at build time because public pages are prerendered. When using local memory, enable streaming and disable buffering on the SSE route. The dashboard polls when using shared storage. Set `TRUSTED_CLIENT_IP_HEADER` only for an edge-controlled header that is stripped or overwritten before the app receives it.
+Set `APP_BASE_URL` to the public HTTPS origin. Build with `npm.cmd run build` and run `npm.cmd start` behind an HTTPS reverse proxy. Supply business policy values at build time because public pages are prerendered. Enable streaming and disable buffering on the SSE route when running the local server. Set `TRUSTED_CLIENT_IP_HEADER` only for an edge-controlled header that is stripped or overwritten before the app receives it.
 
 Webhook deduplication and retry diagnostics use the configured workspace store. Meta can retry failed deliveries. Review unconfirmed outgoing status before sending again. Approved templates support numbered body variables and compatible static components.
 

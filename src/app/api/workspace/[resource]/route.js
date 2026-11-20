@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rows, get, find, put, remove, insert, update, users, pendingRequests, audit, limited, sharedStorageRequired, withWorkspaceStore, WorkspaceStorageError } from "@/lib/store.mjs";
+import { rows, get, find, put, remove, insert, update, users, pendingRequests, audit, limited, withWorkspaceStore, WorkspaceStorageError } from "@/lib/store.mjs";
 import { authenticate, clientKey, cookieName, digest, email, hashPassword, localWorkspaceUser, nonce, phone, text, windowOpen, workspaceUser } from "@/lib/security.mjs";
 import { messageReactions, reactionLifetime } from "@/lib/message-reactions.mjs";
 import { outbound, snapshot, thread, timeline } from "@/lib/inbox.mjs";
@@ -335,15 +335,15 @@ async function storedRequest(request, resource, handler) {
   try { return await withWorkspaceStore(() => handler(request, resource)); }
   catch (error) {
     if (!(error instanceof WorkspaceStorageError)) throw error;
-    console.error("[Workspace] Shared storage unavailable",error.message);
-    return fail(503,"Shared inbox storage unavailable. Check the deployment storage configuration.");
+    console.error("[Workspace] Local storage unavailable",error.message);
+    return fail(503,"Local inbox storage unavailable. Check the server storage directory.");
   }
 }
 
 export async function GET(request,{params}) {
   const {resource} = await params;
-  // Poll across serverless invocations so each refresh loads current shared state.
-  if (resource === "events" && sharedStorageRequired()) return new Response(null,{status:204});
+  // Poll across serverless invocations so each refresh can try a fresh inbox request.
+  if (resource === "events" && process.env.VERCEL) return new Response(null,{status:204});
   return storedRequest(request,resource,getResource);
 }
 
